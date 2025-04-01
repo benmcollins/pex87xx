@@ -1,16 +1,57 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/*
+ * pex87xx.c: Implementation for the PEX87xx I2C slave interface
+ *
+ * Rajat Jain <rajatjain@juniper.net>
+ * Copyright 2014 Juniper Networks
+ *
+ * Copyright (C) 2025 by Ben Collins <bcollins@kernel.org>
+ */
+
 #include <stdio.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <linux/i2c.h>
+#include <linux/i2c-dev.h>
+#include <linux/pci_regs.h>
+#include <sys/ioctl.h>
 
 #include "pex87xx.h"
 
-#define PEX_PLX_VENDOR		0x10B5
+#define MASK_BYTE0			0x01
+#define MASK_BYTE1			0x02
+#define MASK_BYTE2			0x04
+#define MASK_BYTE3			0x08
+#define MASK_BYTE_ALL			(MASK_BYTE0 | MASK_BYTE1 |\
+					 MASK_BYTE2 | MASK_BYTE3)
 
-#define PEX_8713_ID		0x8713
-#define PEX_8724_ID		0x8724
+#define PEX87XX_CMD(val)		(((val) & 7) << 24)
+#define PEX87XX_CMD_WR			0x03
+#define PEX87XX_CMD_RD			0x04
+
+#define PEX87XX_BYTE_ENA(val)		(((val) & 0xF) << 10)
+#define PEX87XX_REG(val)		(((val) >> 2) & 0x3FF)
+
+/* PEX87xx Device specific register defines */
+#define PEX87XX_MODE(val)		(((val) & 3) << 20)
+#define PEX87XX_STN(val)		(((val) & 3) << 18)
+#define PEX87XX_PORT(val)		(((val) & 7) << 15)
+
+#define PEX87XX_I2C_CMD(cmd, port, mode, stn, reg, byte_mask)	\
+	(PEX87XX_CMD(cmd)   |					\
+	 PEX87XX_MODE(mode) |					\
+	 PEX87XX_STN(stn)   |					\
+	 PEX87XX_PORT(port) |					\
+	 PEX87XX_BYTE_ENA(byte_mask) |				\
+	 PEX87XX_REG(reg))
+
+#define PEX_PLX_VENDOR			0x10B5
+
+#define PEX_8713_ID			0x8713
+#define PEX_8724_ID			0x8724
 
 static struct pex87xx_device known_devices[] = {
 	{
@@ -34,17 +75,10 @@ static struct pex87xx_device known_devices[] = {
 	{0},
 };
 
-int pex87xx_read(struct pex87xx_device *pex, uint8_t stn, uint8_t mode,
-		 uint8_t port, uint32_t reg, uint32_t *val)
+int pex87xx_read(struct pex87xx_device *pex, uint8_t stn, uint8_t port,
+		 uint8_t mode, uint32_t reg, uint32_t *val)
 {
 	uint32_t send;
-
-	if (!PEX_PORT_ENABLED(pex, port))
-		return -EINVAL;
-
-	send = PEX87XX_I2C_CMD(PEX87XX_CMD_RD, port, mode,
-			       stn, reg, MASK_BYTE_ALL);
-
 	struct i2c_msg msgs[] = {
 		{
 			.addr = pex->i2c_dev,
@@ -64,6 +98,12 @@ int pex87xx_read(struct pex87xx_device *pex, uint8_t stn, uint8_t mode,
 		.nmsgs = 2,
         };
 
+	if (!PEX_PORT_ENABLED(pex, port))
+		return -EINVAL;
+
+	send = PEX87XX_I2C_CMD(PEX87XX_CMD_RD, port, mode,
+			       stn, reg, MASK_BYTE_ALL);
+
 	return ioctl(pex->fd, I2C_RDWR, &data);
 }
 
@@ -72,14 +112,6 @@ int pex87xx_write(struct pex87xx_device *pex, uint8_t stn, uint8_t port,
 {
 	uint32_t cmd[2];
 	uint8_t *send = (uint8_t *)cmd;
-
-	if (!PEX_PORT_ENABLED(pex, port))
-		return -EINVAL;
-
-	cmd[0] = PEX87XX_I2C_CMD(PEX87XX_CMD_WR, port, mode,
-				 stn, reg, MASK_BYTE_ALL);
-	cmd[1] = val;
-
 	struct i2c_msg msgs[] = {
 		{
 			.addr = pex->i2c_dev,
@@ -92,6 +124,13 @@ int pex87xx_write(struct pex87xx_device *pex, uint8_t stn, uint8_t port,
 		.msgs = msgs,
 		.nmsgs = 1,
 	};
+
+	if (!PEX_PORT_ENABLED(pex, port))
+		return -EINVAL;
+
+	cmd[0] = PEX87XX_I2C_CMD(PEX87XX_CMD_WR, port, mode,
+				 stn, reg, MASK_BYTE_ALL);
+	cmd[1] = val;
 
 	return ioctl(pex->fd, I2C_RDWR, &data);
 }

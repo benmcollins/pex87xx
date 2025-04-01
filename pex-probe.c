@@ -1,8 +1,11 @@
-#include <stdio.h>
-#include <fcntl.h>
+/* SPDX-License-Identifier: GPL-2.0+ */
+/*
+ * pex-probe: Scan i2c busses for possibel PEX87xx devices
+ *
+ * Copyright (C) 2025 by Ben Collins <bcollins@kernel.org>
+ */
+
 #include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
 
 #include "pex87xx.h"
 

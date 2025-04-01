@@ -1,5 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/*
+ * pex-dump: Dump full register set for PEX87xx device ports
+ *
+ * Copyright (C) 2025 by Ben Collins <bcollins@kernel.org>
+ */
+
 #include <stdio.h>
-#include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -34,7 +40,7 @@ int main(int argc, char *argv[])
 	}
 
 	for (addr = 0; addr < 4096; addr += 4) {
-		if (pex87xx_read(pex, 0, 0, port, addr, &reg) < 0)
+		if (pex87xx_read(pex, 0, port, 0, addr, &reg) < 0)
 			break;
 		write(1, &reg, 4);
 	}

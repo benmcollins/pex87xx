@@ -1,5 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+/*
+ * pex-status: Print some information about a PEX87xx device
+ *
+ * Copyright (C) 2025 by Ben Collins <bcollins@kernel.org>
+ */
+
 #include <stdio.h>
-#include <fcntl.h>
 #include <stdlib.h>
 
 #include "pex87xx.h"
@@ -8,7 +14,7 @@ static void check_status(struct pex87xx_device *pex, uint8_t port)
 {
 	uint32_t status;
 
-	pex87xx_read(pex, 0, 0, port, 0x3a4, &status);
+	pex87xx_read(pex, 0, port, 0, 0x3a4, &status);
 
 	printf("PEX Status[%d]: %08x\n", port, status);
 }
@@ -35,7 +41,7 @@ static void print_port(struct pex87xx_device *pex, uint8_t stn, uint8_t port)
 {
 	uint32_t status = 0;
 
-	pex87xx_read(pex, stn, 0, port, 0xf70, &status);
+	pex87xx_read(pex, stn, port, 0, 0xf70, &status);
 
 	print_port_color(port, status);
 }
@@ -45,32 +51,32 @@ static void print_modes(struct pex87xx_device *pex)
 	uint32_t status = 0;
 
 	printf("NTV :");
-	pex87xx_read(pex, 0, MODE_NT_VIRT, 0, 0xf70, &status);
+	pex87xx_read(pex, 0, 0, PEX_MODE_NT_VIRT, 0xf70, &status);
 	print_port_color(0, status);
-	pex87xx_read(pex, 0, MODE_NT_VIRT, 1, 0xf70, &status);
+	pex87xx_read(pex, 0, 1, PEX_MODE_NT_VIRT, 0xf70, &status);
 	print_port_color(1, status);
 	printf("\n");
 
 	printf("NTL :");
-	pex87xx_read(pex, 0, MODE_NT_LINK, 0, 0xf70, &status);
+	pex87xx_read(pex, 0, 0, PEX_MODE_NT_LINK, 0xf70, &status);
 	print_port_color(0, status);
-	pex87xx_read(pex, 0, MODE_NT_LINK, 1, 0xf70, &status);
+	pex87xx_read(pex, 0, 1, PEX_MODE_NT_LINK, 0xf70, &status);
 	print_port_color(1, status);
 	printf("\n");
 
 	printf("DMA :");
-	pex87xx_read(pex, 0, MODE_DMA, 0, 0xf70, &status);
+	pex87xx_read(pex, 0, 0, PEX_MODE_DMA, 0xf70, &status);
 	print_port_color(0, status);
-	pex87xx_read(pex, 0, MODE_DMA, 1, 0xf70, &status);
+	pex87xx_read(pex, 0, 1, PEX_MODE_DMA, 0xf70, &status);
 	print_port_color(1, status);
-	pex87xx_read(pex, 0, MODE_DMA, 2, 0xf70, &status);
+	pex87xx_read(pex, 0, 2, PEX_MODE_DMA, 0xf70, &status);
 	print_port_color(2, status);
-	pex87xx_read(pex, 0, MODE_DMA, 3, 0xf70, &status);
+	pex87xx_read(pex, 0, 3, PEX_MODE_DMA, 0xf70, &status);
 	print_port_color(3, status);
 	printf("\n");
 
 	printf("DRAM:");
-	pex87xx_read(pex, 0, MODE_DMA, 4, 0xf70, &status);
+	pex87xx_read(pex, 0, 4, PEX_MODE_DMA, 0xf70, &status);
 	print_port_color(0, status);
 	printf("\n");
 }
