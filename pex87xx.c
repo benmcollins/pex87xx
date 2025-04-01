@@ -195,7 +195,6 @@ int pex87xx_read(struct pex87xx_device *pex, uint8_t stn, uint8_t port,
 int pex87xx_write(struct pex87xx_device *pex, uint8_t stn, uint8_t port,
 		  uint8_t mode, uint32_t reg, uint32_t val)
 {
-	int i;
 	uint32_t cmd[2];
 	uint8_t *send = (uint8_t *)cmd;
 	struct i2c_msg msgs[] = {
@@ -217,11 +216,6 @@ int pex87xx_write(struct pex87xx_device *pex, uint8_t stn, uint8_t port,
 	cmd[0] = PEX87XX_I2C_CMD(PEX87XX_CMD_WR, port, mode,
 				 stn, reg, MASK_BYTE_ALL);
 	cmd[1] = val;
-
-	printf("%08x %08x: ", cmd[0], cmd[1]);
-
-	for (i = 0; i < 8; i++)
-		printf(" %02x", send[i]);
 
 	return ioctl(pex->fd, I2C_RDWR, &data);
 }
