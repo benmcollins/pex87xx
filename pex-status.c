@@ -126,12 +126,21 @@ static void check_enabled_ports(struct pex87xx_device *pex)
 	printf("Ports enabled: %04llx\n", pex->ports);
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	struct pex87xx_device *pex;
+	uint8_t bus, dev;
 	int i;
 
-	pex = pex87xx_open(2, 0x38);
+	if (argc != 3) {
+		fprintf(stderr, "Usage: pex-status <bus> <dev>\n");
+		exit(1);
+	}
+
+	bus = strtol(argv[1], NULL, 0);
+	dev = strtol(argv[2], NULL, 0);
+
+	pex = pex87xx_open(bus, dev);
 	if (pex == NULL) {
 		perror("open");
 		exit(1);
