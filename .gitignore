@@ -1,4 +1,5 @@
 pex-dump
 pex-probe
 pex-status
+pex-write
 *.o
