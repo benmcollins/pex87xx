@@ -3,51 +3,50 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+#include <string.h>
 
 #include "pex87xx.h"
 
-#define PXPRT(__p)      ((1 << __p) & enabled_ports)
-
-static uint16_t enabled_ports = 0x70f;
+#if 0
+#define PEX_PORT_ENABLED(__pex, __p) \
+	((1 << __p) & __pex->ports)
+#else
+#define PEX_PORT_ENABLED(__pex, __p) (1)
+#endif
 
 #define PEX_PLX_VENDOR		0x10B5
 
 #define PEX_8713_ID		0x8713
 #define PEX_8724_ID		0x8724
 
-struct pex87xx_device {
-	uint16_t	ven_id;
-	uint16_t	dev_id;
-	uint8_t		rev;
-	const char	*name;
-	uint8_t		i2c_bus;
-	uint8_t		i2c_dev;
-	int		fd;
-};
-
 static struct pex87xx_device known_devices[] = {
 	{
-		.ven_id	= PEX_PLX_VENDOR,
-		.dev_id	= PEX_8713_ID,
-		.name	= "PEX8713",
-		.fd	= -1,
+		.ven_id		= PEX_PLX_VENDOR,
+		.dev_id		= PEX_8713_ID,
+		.name		= "PEX8713",
+		.ports		= 0x00003F3F,
+		.stns		= 2,
+		.stn_mask	= 0x3,
+		.ports_per_stn	= 8,
 	},
 	{
-		.ven_id	= PEX_PLX_VENDOR,
-		.dev_id	= PEX_8724_ID,
-		.name	= "PEX8724",
-		.fd	= -1,
+		.ven_id		= PEX_PLX_VENDOR,
+		.dev_id		= PEX_8724_ID,
+		.name		= "PEX8724",
+		.ports		= 0x0000070f,
+		.stns		= 2,
+		.stn_mask	= 0x3,
+		.ports_per_stn	= 8,
 	},
 	{0},
 };
 
-
-int pex87xx_read(int file, uint8_t dev, uint8_t stn, uint8_t mode,
+int pex87xx_read(struct pex87xx_device *pex, uint8_t stn, uint8_t mode,
 		 uint8_t port, uint32_t reg, uint32_t *val)
 {
 	uint32_t send;
 
-	if (!PXPRT(port))
+	if (!PEX_PORT_ENABLED(pex, port))
 		return -EINVAL;
 
 	send = PEX87XX_I2C_CMD(PEX87XX_CMD_RD, port, mode,
@@ -55,13 +54,13 @@ int pex87xx_read(int file, uint8_t dev, uint8_t stn, uint8_t mode,
 
 	struct i2c_msg msgs[] = {
 		{
-			.addr = dev,
+			.addr = pex->i2c_dev,
 			.len = 4,
 			.flags = 0,
 			.buf = (uint8_t *)&send,
 		},
 		{
-			.addr = dev,
+			.addr = pex->i2c_dev,
 			.len = 4,
 			.flags = I2C_M_RD,
 			.buf = (uint8_t *)val,
@@ -72,16 +71,16 @@ int pex87xx_read(int file, uint8_t dev, uint8_t stn, uint8_t mode,
 		.nmsgs = 2,
         };
 
-	return ioctl(file, I2C_RDWR, &data);
+	return ioctl(pex->fd, I2C_RDWR, &data);
 }
 
-int pex87xx_write(int file, uint8_t dev, uint8_t stn, uint8_t port,
+int pex87xx_write(struct pex87xx_device *pex, uint8_t stn, uint8_t port,
 		  uint8_t mode, uint32_t reg, uint32_t val)
 {
 	uint32_t cmd[2];
 	uint8_t *send = (uint8_t *)cmd;
 
-	if (!PXPRT(port))
+	if (!PEX_PORT_ENABLED(pex, port))
 		return -EINVAL;
 
 	cmd[0] = PEX87XX_I2C_CMD(PEX87XX_CMD_WR, port, mode,
@@ -90,7 +89,7 @@ int pex87xx_write(int file, uint8_t dev, uint8_t stn, uint8_t port,
 
 	struct i2c_msg msgs[] = {
 		{
-			.addr = dev,
+			.addr = pex->i2c_dev,
 			.len = 8,
 			.flags = 0,
 			.buf = send,
@@ -101,24 +100,34 @@ int pex87xx_write(int file, uint8_t dev, uint8_t stn, uint8_t port,
 		.nmsgs = 1,
 	};
 
-	return ioctl(file, I2C_RDWR, &data);
+	return ioctl(pex->fd, I2C_RDWR, &data);
 }
 
-static int probe_one(int fd, uint8_t bus, uint8_t id)
+static int probe_one(int fd, struct pex87xx_device **pex, uint8_t bus,
+		     uint8_t id)
 {
+	struct pex87xx_device *new = NULL;
+	struct pex87xx_device tmp;
 	uint32_t status;
 	uint16_t ven, dev;
 	uint8_t rev;
 	int i;
 
-	if (pex87xx_read(fd, id, 0, 0, 0, PCI_VENDOR_ID, &status) < 0)
-		return 0;
+	/* Setup a tmp to probe */
+	tmp.fd = fd;
+	tmp.i2c_bus = bus;
+	tmp.i2c_dev = id;
+	tmp.ports = 1;
+
+	if (pex87xx_read(&tmp, 0, 0, 0, PCI_VENDOR_ID, &status) < 0)
+		return -1;
 
 	ven = status & 0xffff;
 	dev = status >> 16;
 
-	if (pex87xx_read(fd, id, 0, 0, 0, 0x08, &status) < 0)
-		return 0;
+	if (pex87xx_read(&tmp, 0, 0, 0, 0x08, &status) < 0)
+		return -1;
+
 	rev = status & 0xff;
 
 	for (i = 0; known_devices[i].name; i++) {
@@ -126,12 +135,58 @@ static int probe_one(int fd, uint8_t bus, uint8_t id)
 		    known_devices[i].dev_id != dev)
 			continue;
 
-		printf("Found %s-%02X at %x-%04x\n",
-		       known_devices[i].name, rev, bus, id);
-		return 1;
+		fprintf(stderr, "Found %s-%02X at %x-%04x\n",
+			known_devices[i].name, rev, bus, id);
+
+		if (pex == NULL)
+			return i;
+
+		new = malloc(sizeof(*new));
+		if (new == NULL)
+			return -1;
+
+		memcpy(new, &known_devices[i], sizeof(*new));
+		new->fd = fd;
+		new->i2c_bus = bus;
+		new->i2c_dev = id;
+		new->rev = rev;
+		*pex = new;
+
+		return i;
 	}
 
-	return 0;
+	return -1;
+}
+
+struct pex87xx_device *pex87xx_open(uint8_t bus, uint8_t id)
+{
+	struct pex87xx_device *new = NULL;
+	char path[256];
+	int fd;
+
+	sprintf(path, "/dev/i2c-%d", bus);
+	if ((fd = open(path, O_RDWR)) < 0)
+		return NULL;
+
+	if (ioctl(fd, I2C_SLAVE, id) < 0)
+		goto open_fail;
+
+	probe_one(fd, &new, bus, id);
+
+open_fail:
+	if (new == NULL)
+		close(fd);
+
+	return new;
+}
+
+void pex87xx_close(struct pex87xx_device *pex)
+{
+	if (pex == NULL)
+		return;
+
+	close(pex->fd);
+	free(pex);
 }
 
 int pex87xx_probe_bus(uint8_t bus)
@@ -156,7 +211,9 @@ int pex87xx_probe_bus(uint8_t bus)
 			if (ioctl(fd, I2C_SLAVE, id) < 0)
 				continue;
 
-			count += probe_one(fd, bus, id);
+			probe_one(fd, NULL, bus, id);
+			break;
+		default:
 			break;
 		}
 	}
@@ -165,3 +222,5 @@ int pex87xx_probe_bus(uint8_t bus)
 
 	return count;
 }
+
+

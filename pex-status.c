@@ -14,11 +14,12 @@
 
 static uint16_t enabled_ports = 0x70f;
 
-static void check_status(int file, uint8_t port)
+/* XXX Move to common */
+static void check_status(struct pex87xx_device *pex, uint8_t port)
 {
 	uint32_t status;
 
-	pex87xx_read(file, PXADR, 0, 0, port, 0x3a4, &status);
+	pex87xx_read(pex, 0, 0, port, 0x3a4, &status);
 
 	printf("PEX Status[%d]: %08x\n", port, status);
 }
@@ -41,79 +42,58 @@ static void print_port_color(uint8_t port, uint32_t status)
 	}
 }
 
-static void print_port(int file, uint8_t stn, uint8_t port)
+static void print_port(struct pex87xx_device *pex, uint8_t stn, uint8_t port)
 {
 	uint32_t status = 0;
 
-	pex87xx_read(file, PXADR, stn, 0, port, 0xf70, &status);
+	pex87xx_read(pex, stn, 0, port, 0xf70, &status);
 
 	print_port_color(port, status);
 }
 
-static void print_modes(int file)
+static void print_modes(struct pex87xx_device *pex)
 {
 	uint32_t status = 0;
 
 	printf("NTV :");
-	pex87xx_read(file, PXADR, 0, MODE_NT_VIRT, 0, 0xf70, &status);
+	pex87xx_read(pex, 0, MODE_NT_VIRT, 0, 0xf70, &status);
 	print_port_color(0, status);
-	pex87xx_read(file, PXADR, 0, MODE_NT_VIRT, 1, 0xf70, &status);
+	pex87xx_read(pex, 0, MODE_NT_VIRT, 1, 0xf70, &status);
 	print_port_color(1, status);
 	printf("\n");
 
 	printf("NTL :");
-	pex87xx_read(file, PXADR, 0, MODE_NT_LINK, 0, 0xf70, &status);
+	pex87xx_read(pex, 0, MODE_NT_LINK, 0, 0xf70, &status);
 	print_port_color(0, status);
-	pex87xx_read(file, PXADR, 0, MODE_NT_LINK, 1, 0xf70, &status);
+	pex87xx_read(pex, 0, MODE_NT_LINK, 1, 0xf70, &status);
 	print_port_color(1, status);
 	printf("\n");
 
 	printf("DMA :");
-	pex87xx_read(file, PXADR, 0, MODE_DMA, 0, 0xf70, &status);
+	pex87xx_read(pex, 0, MODE_DMA, 0, 0xf70, &status);
 	print_port_color(0, status);
-	pex87xx_read(file, PXADR, 0, MODE_DMA, 1, 0xf70, &status);
+	pex87xx_read(pex, 0, MODE_DMA, 1, 0xf70, &status);
 	print_port_color(1, status);
-	pex87xx_read(file, PXADR, 0, MODE_DMA, 2, 0xf70, &status);
+	pex87xx_read(pex, 0, MODE_DMA, 2, 0xf70, &status);
 	print_port_color(2, status);
-	pex87xx_read(file, PXADR, 0, MODE_DMA, 3, 0xf70, &status);
+	pex87xx_read(pex, 0, MODE_DMA, 3, 0xf70, &status);
 	print_port_color(3, status);
 	printf("\n");
 
 	printf("DRAM:");
-	pex87xx_read(file, PXADR, 0, MODE_DMA, 4, 0xf70, &status);
+	pex87xx_read(pex, 0, MODE_DMA, 4, 0xf70, &status);
 	print_port_color(0, status);
 	printf("\n");
 }
 
-static void print_pci_ids(int file)
-{
-	uint32_t status = 0;
-	uint16_t ven, dev;
-
-	pex87xx_read(file, PXADR, 0, 0, 0, PCI_VENDOR_ID, &status);
-	ven = status & 0xffff;
-	dev = status >> 16;
-
-	pex87xx_read(file, PXADR, 0, 0, 0, 0x08, &status);
-
-	printf("Device: ven[%04x] dev[%04x] rev[%02X]\n", ven, dev,
-	       status & 0xff);
-
-	if (ven != PLX_PCI_VENDOR_ID_PLX ||
-	    dev != PLX_PCI_DEVICE_ID_8724) {
-		printf("Unknown device\n");
-		exit(1);
-	}
-}
-
-static void management_port(int file)
+static void management_port(struct pex87xx_device *pex)
 {
 	uint32_t mngmt = 0, vls_mask = 0;
 	int i, vs_num = 0;
 
-	pex87xx_read(file, PXADR, 0, 0, 0, 0x354, &mngmt);
+	pex87xx_read(pex, 0, 0, 0, 0x354, &mngmt);
 	printf("Management Port Config: %08x\n", mngmt);
-	pex87xx_read(file, PXADR, 0, 0, 0, 0x358, &vls_mask);
+	pex87xx_read(pex, 0, 0, 0, 0x358, &vls_mask);
 	printf("VLS Mask: %08x\n", vls_mask);
 
 	if ((mngmt == 0) && ((vls_mask & ~(1 << 0)) == 0))
@@ -130,11 +110,11 @@ static void management_port(int file)
 
 		vs_num++;
 
-		pex87xx_read(file, PXADR, 0, 0, 0, 0x360 + (i * 4), &status);
+		pex87xx_read(pex, 0, 0, 0, 0x360 + (i * 4), &status);
 
 		printf("  VS[%d] Upstream Port Num: %d\n", i, status & 0x1f);
 
-		pex87xx_read(file, PXADR, 0, 0, 0, 0x380 + (i * 4), &status);
+		pex87xx_read(pex, 0, 0, 0, 0x380 + (i * 4), &status);
 
 		printf("  VS[%d] Dnstream Ports: %06x\n", i,
 		       status & 0x00FFFFFF);
@@ -146,11 +126,11 @@ static void management_port(int file)
 	printf("\n");
 }
 
-static void check_enabled_ports(int file)
+static void check_enabled_ports(struct pex87xx_device *pex)
 {
 	uint32_t status;
 
-	pex87xx_read(file, PXADR, 0, 0, 0, 0x314, &status);
+	pex87xx_read(pex, 0, 0, 0, 0x314, &status);
 
 	enabled_ports &= status;
 
@@ -159,25 +139,20 @@ static void check_enabled_ports(int file)
 
 int main()
 {
-	int file;
+	struct pex87xx_device *pex;
 	int i;
 
-	if ((file = open(PXDEV, O_RDWR)) < 0) {
+	pex = pex87xx_open(2, PXADR);
+	if (pex == NULL) {
 		perror("open");
 		exit(1);
 	}
 
-	if (ioctl(file, I2C_SLAVE, PXADR) < 0) {
-		perror("i2c slave");
-		exit(1);
-	}
+	check_enabled_ports(pex);
+	management_port(pex);
 
-	print_pci_ids(file);
-	check_enabled_ports(file);
-	management_port(file);
-
-	check_status(file, 0);
-	check_status(file, 8);
+	check_status(pex, 0);
+	check_status(pex, 8);
 
 	for (i = 0; i <= 1; i++) {
 		int c;
@@ -187,13 +162,15 @@ int main()
 		for (c = 0; c < 16; c++) {
 			if (!PXPRT(c))
 				continue;
-			print_port(file, i, c);
+			print_port(pex, i, c);
 		}
 
 		printf("\n");
 	}
 
-	print_modes(file);
+	print_modes(pex);
+
+	pex87xx_close(pex);
 
 	exit(0);
 }

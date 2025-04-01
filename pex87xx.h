@@ -40,12 +40,29 @@
          PEX87XX_BYTE_ENA(byte_mask) |                          \
          PEX87XX_REG(reg))
 
-int pex87xx_read(int file, uint8_t dev, uint8_t stn, uint8_t mode, uint8_t port,
-		 uint32_t reg, uint32_t *val);
+struct pex87xx_device {
+	uint16_t	ven_id;
+	uint16_t	dev_id;
+	uint8_t		rev;
+	const char	*name;
+	uint8_t		i2c_bus;
+	uint8_t		i2c_dev;
+	uint64_t	ports;
+	uint8_t		stns;
+	uint8_t		stn_mask;
+	uint8_t		ports_per_stn;
+	int		fd;
+};
 
-int pex87xx_write(int file, uint8_t dev, uint8_t stn, uint8_t port,
+int pex87xx_read(struct pex87xx_device *pex, uint8_t stn, uint8_t mode,
+		 uint8_t port, uint32_t reg, uint32_t *val);
+
+int pex87xx_write(struct pex87xx_device *pex, uint8_t stn, uint8_t port,
 		  uint8_t mode, uint32_t reg, uint32_t val);
 
 int pex87xx_probe_bus(uint8_t bus);
+
+struct pex87xx_device *pex87xx_open(uint8_t bus, uint8_t id);
+void pex87xx_close(struct pex87xx_device *pex);
 
 #endif
