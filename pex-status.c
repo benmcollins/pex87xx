@@ -21,6 +21,18 @@ static void check_status(struct pex87xx_device *pex, uint8_t port)
 
 static void print_port_color(uint8_t port, uint32_t status)
 {
+	/*
+	 * I have no idea what reg 0xf70 is nor what these values even mean, but
+	 * it seems to correlate with enabling the port with the controller. I
+	 * have a 2 node system with a back plane that has a PEX8724. This
+	 * U-Boot code sends these commands, which enables things for one of the
+	 * nodes, but not the other:
+	 *
+	 * "Assign Hotplug controller C to Port 2 , A to Port 3 "
+	 * pex87xx_write(PLX_PEX8724_I2C_ADDR, 0, 0, 0, 0x3a4, 0x00820A83);
+	 * pex87xx_write(PLX_PEX8724_I2C_ADDR, 0, 2, 0, 0xf70, 0x80000008);
+	 * pex87xx_write(PLX_PEX8724_I2C_ADDR, 0, 3, 0, 0xf70, 0x80000008);
+	 */
 	switch (status) {
 	case 0x80000008:
 		printf(" \e[1;92m%d\e[0m", port);
