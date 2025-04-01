@@ -17,3 +17,25 @@ Mainly I am looking to understand this:
     pex87xx_write(PLX_PEX8724_I2C_ADDR, 0, 0, 0, 0x3a4, 0x00820A83);
     pex87xx_write(PLX_PEX8724_I2C_ADDR, 0, 2, 0, 0xf70, 0x80000008);
     pex87xx_write(PLX_PEX8724_I2C_ADDR, 0, 3, 0, 0xf70, 0x80000008);
+
+On one system I see this:
+```
+0000:00:00.0 PCI bridge: Freescale Semiconductor Inc T4240 with security (rev 20)
+0002:00:00.0 PCI bridge: Freescale Semiconductor Inc T4240 with security (rev 20)
+0002:01:00.0 PCI bridge: PLX Technology, Inc. PEX 8724 24-Lane, 6-Port PCI Express Gen 3 (8 GT/s) Switch, 19 x 19mm FCBGA (rev ca)
+0002:02:01.0 PCI bridge: PLX Technology, Inc. PEX 8724 24-Lane, 6-Port PCI Express Gen 3 (8 GT/s) Switch, 19 x 19mm FCBGA (rev ca)
+0002:02:02.0 PCI bridge: PLX Technology, Inc. PEX 8724 24-Lane, 6-Port PCI Express Gen 3 (8 GT/s) Switch, 19 x 19mm FCBGA (rev ca)
+0002:02:03.0 PCI bridge: PLX Technology, Inc. PEX 8724 24-Lane, 6-Port PCI Express Gen 3 (8 GT/s) Switch, 19 x 19mm FCBGA (rev ca)
+0002:02:08.0 PCI bridge: PLX Technology, Inc. PEX 8724 24-Lane, 6-Port PCI Express Gen 3 (8 GT/s) Switch, 19 x 19mm FCBGA (rev ca)
+0002:02:09.0 PCI bridge: PLX Technology, Inc. PEX 8724 24-Lane, 6-Port PCI Express Gen 3 (8 GT/s) Switch, 19 x 19mm FCBGA (rev ca)
+0002:02:0a.0 PCI bridge: PLX Technology, Inc. PEX 8724 24-Lane, 6-Port PCI Express Gen 3 (8 GT/s) Switch, 19 x 19mm FCBGA (rev ca)
+0002:03:00.0 Bridge: PLX Technology, Inc. PEX PCI Express Switch NT0 Port Virtual Interface (rev ca)
+0002:04:00.0 Non-Volatile memory controller: Micron Technology Inc 2550 NVMe SSD (DRAM-less) (rev 01)
+```
+One the other, just this:
+```
+0000:00:00.0 PCI bridge: Freescale Semiconductor Inc T4240 with security (rev 20)
+0002:00:00.0 PCI bridge: Freescale Semiconductor Inc T4240 with security (rev 20)
+```
+The 8724 has 24 lanes, 6 ports. It supports ports 0-3,8-10. The bus numbering above certainly looks like 0-3,8-10,
+which would mean all the ports are being directed to the one node.
