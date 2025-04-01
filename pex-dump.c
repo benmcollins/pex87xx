@@ -5,10 +5,6 @@
 
 #include "pex87xx.h"
 
-#define PXADR   0x38
-#define PEX_PORT_ENABLED(__mask, __p) \
-	((1 << __p) & __mask)
-
 int main(int argc, char *argv[])
 {
 	struct pex87xx_device *pex;
@@ -31,7 +27,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (!PEX_PORT_ENABLED(pex->ports, port)) {
+	if (!PEX_PORT_ENABLED(pex, port)) {
 		fprintf(stderr, "%d is not a valid port\n", port);
 		pex87xx_close(pex);
 		exit(1);

@@ -3,7 +3,7 @@ CFLAGS=-Wall -Werror -O3 -D_GNU_SOURCE
 
 TARGETS = pex-status pex-dump pex-probe
 
-COMMON = pex87xx.h pex-common.o
+COMMON = pex87xx.o
 
 all: $(TARGETS)
 

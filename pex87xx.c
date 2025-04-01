@@ -7,13 +7,6 @@
 
 #include "pex87xx.h"
 
-#if 0
-#define PEX_PORT_ENABLED(__pex, __p) \
-	((1 << __p) & __pex->ports)
-#else
-#define PEX_PORT_ENABLED(__pex, __p) (1)
-#endif
-
 #define PEX_PLX_VENDOR		0x10B5
 
 #define PEX_8713_ID		0x8713
@@ -103,6 +96,15 @@ int pex87xx_write(struct pex87xx_device *pex, uint8_t stn, uint8_t port,
 	return ioctl(pex->fd, I2C_RDWR, &data);
 }
 
+static void check_enabled_ports(struct pex87xx_device *pex)
+{
+	uint32_t status;
+
+	pex87xx_read(pex, 0, 0, 0, 0x314, &status);
+
+	pex->ports &= status;
+}
+
 static int probe_one(int fd, struct pex87xx_device **pex, uint8_t bus,
 		     uint8_t id)
 {
@@ -150,6 +152,9 @@ static int probe_one(int fd, struct pex87xx_device **pex, uint8_t bus,
 		new->i2c_bus = bus;
 		new->i2c_dev = id;
 		new->rev = rev;
+
+		check_enabled_ports(new);
+
 		*pex = new;
 
 		return i;

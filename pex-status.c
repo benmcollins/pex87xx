@@ -4,17 +4,6 @@
 
 #include "pex87xx.h"
 
-#define PXADR	0x38
-#define PXDEV	"/dev/i2c-2"
-
-#define PLX_PCI_VENDOR_ID_PLX	0x10B5
-#define PLX_PCI_DEVICE_ID_8724	0x8724
-
-#define PXPRT(__p)      ((1 << __p) & enabled_ports)
-
-static uint16_t enabled_ports = 0x70f;
-
-/* XXX Move to common */
 static void check_status(struct pex87xx_device *pex, uint8_t port)
 {
 	uint32_t status;
@@ -128,13 +117,7 @@ static void management_port(struct pex87xx_device *pex)
 
 static void check_enabled_ports(struct pex87xx_device *pex)
 {
-	uint32_t status;
-
-	pex87xx_read(pex, 0, 0, 0, 0x314, &status);
-
-	enabled_ports &= status;
-
-	printf("Ports enabled: %02x\n", enabled_ports);
+	printf("Ports enabled: %04llx\n", pex->ports);
 }
 
 int main()
@@ -142,7 +125,7 @@ int main()
 	struct pex87xx_device *pex;
 	int i;
 
-	pex = pex87xx_open(2, PXADR);
+	pex = pex87xx_open(2, 0x38);
 	if (pex == NULL) {
 		perror("open");
 		exit(1);
@@ -160,7 +143,7 @@ int main()
 	        printf("PEX Ports[%d]:", i);
 
 		for (c = 0; c < 16; c++) {
-			if (!PXPRT(c))
+			if (!PEX_PORT_ENABLED(pex, c))
 				continue;
 			print_port(pex, i, c);
 		}

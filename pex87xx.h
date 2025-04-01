@@ -40,6 +40,9 @@
          PEX87XX_BYTE_ENA(byte_mask) |                          \
          PEX87XX_REG(reg))
 
+#define PEX_PORT_ENABLED(__pex, __p) \
+	((1 << __p) & __pex->ports)
+
 struct pex87xx_device {
 	uint16_t	ven_id;
 	uint16_t	dev_id;
