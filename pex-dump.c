@@ -15,17 +15,19 @@ int main(int argc, char *argv[])
 {
 	struct pex87xx_device *pex;
 	size_t addr;
-	uint8_t port, bus, dev;
+	uint8_t port, bus, dev, stn, mode;
 	uint32_t reg;
 
-	if (argc != 4) {
-		fprintf(stderr, "Usage: pex-dump <bus> <dev> <port>\n");
+	if (argc != 6) {
+		fprintf(stderr, "Usage: pex-dump <bus> <dev> <stn> <port> <mode>\n");
 		exit(1);
 	}
 
 	bus = strtol(argv[1], NULL, 0);
 	dev = strtol(argv[2], NULL, 0);
-	port = strtol(argv[3], NULL, 0);
+	stn = strtol(argv[3], NULL, 0);
+	port = strtol(argv[4], NULL, 0);
+	mode = strtol(argv[5], NULL, 0);
 
 	pex = pex87xx_open(bus, dev);
 	if (pex == NULL) {
@@ -40,7 +42,7 @@ int main(int argc, char *argv[])
 	}
 
 	for (addr = 0; addr < 4096; addr += 4) {
-		if (pex87xx_read(pex, 0, port, 0, addr, &reg) < 0)
+		if (pex87xx_read(pex, stn, port, mode, addr, &reg) < 0)
 			break;
 		write(1, &reg, 4);
 	}

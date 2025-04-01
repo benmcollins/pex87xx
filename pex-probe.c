@@ -13,7 +13,7 @@ int main()
 {
 	int i;
 
-	for (i = 1; i <= 0xff; i++) {
+	for (i = 0; i <= 128; i++) {
 		if (pex87xx_probe_bus(i) < 0)
 			break;
 	}

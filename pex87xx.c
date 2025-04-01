@@ -48,29 +48,114 @@
 	 PEX87XX_BYTE_ENA(byte_mask) |				\
 	 PEX87XX_REG(reg))
 
-#define PEX_PLX_VENDOR			0x10B5
-
-#define PEX_8713_ID			0x8713
-#define PEX_8724_ID			0x8724
+#define PEX_VENDOR_PLX			0x10b5
+#define PEX_VENDOR_BROADCOM		0x14E4
+#define PEX_VENDOR_LSI			0x1000
 
 static struct pex87xx_device known_devices[] = {
 	{
-		.ven_id		= PEX_PLX_VENDOR,
-		.dev_id		= PEX_8713_ID,
+		.dev_id		= 0x8700,
+		.name		= "PEX8700",
+		.ports		= 0x0000000f,
+		.stns		= 1,
+		.stn_mask	= 0x1,
+		.ports_per_stn	= 4,
+	},
+	{
+		.dev_id		= 0x8712,
+		.name		= "PEX8712",
+		.ports		= 0x0000000f,
+		.stns		= 1,
+		.stn_mask	= 0x1,
+		.ports_per_stn	= 4,
+	},
+	{
+		.dev_id		= 0x8713,
 		.name		= "PEX8713",
-		.ports		= 0x00003F3F,
+		.ports		= 0x00003f3f,
 		.stns		= 2,
 		.stn_mask	= 0x3,
 		.ports_per_stn	= 8,
 	},
 	{
-		.ven_id		= PEX_PLX_VENDOR,
-		.dev_id		= PEX_8724_ID,
+		.dev_id		= 0x8714,
+		.name		= "PEX8714",
+		.ports		= 0x0000001f,
+		.stns		= 1,
+		.stn_mask	= 0x1,
+		.ports_per_stn	= 5,
+	},
+	{
+		.dev_id		= 0x8716,
+		.name		= "PEX8716",
+		.ports		= 0x0000000f,
+		.stns		= 1,
+		.stn_mask	= 0x1,
+		.ports_per_stn	= 4,
+	},
+	{
+		.dev_id		= 0x8717,
+		.name		= "PEX8717",
+		.ports		= 0x00003f3f,
+		.stns		= 2,
+		.stn_mask	= 0x3,
+		.ports_per_stn	= 8,
+	},
+	{
+		.dev_id		= 0x8718,
+		.name		= "PEX8718",
+		.ports		= 0x0000000f,
+		.stns		= 1,
+		.stn_mask	= 0x1,
+		.ports_per_stn	= 4,
+	},
+	{
+		.dev_id		= 0x8723,
+		.name		= "PEX8723",
+		.ports		= 0x0000070f,
+		.stns		= 2,
+		.stn_mask	= 0x3,
+		.ports_per_stn	= 8,
+	},
+	{
+		.dev_id		= 0x8724,
 		.name		= "PEX8724",
 		.ports		= 0x0000070f,
 		.stns		= 2,
 		.stn_mask	= 0x3,
 		.ports_per_stn	= 8,
+	},
+	{
+		.dev_id		= 0x8725,
+		.name		= "PEX8725",
+		.ports		= 0x00003f3f,
+		.stns		= 2,
+		.stn_mask	= 0x3,
+		.ports_per_stn	= 8,
+	},
+	{
+		.dev_id		= 0x8732,
+		.name		= "PEX8732",
+		.ports		= 0x00000f0f,
+		.stns		= 2,
+		.stn_mask	= 0x3,
+		.ports_per_stn	= 8,
+	},
+	{
+		.dev_id		= 0x8733,
+		.name		= "PEX8733",
+		.ports		= 0x003f3f3f,
+		.stns		= 3,
+		.stn_mask	= 0x7,
+		.ports_per_stn	= 8,
+	},
+	{
+		.dev_id		= 0x8734,
+		.name		= "PEX8734",
+		.ports		= 0x000000ff,
+		.stns		= 2,
+		.stn_mask	= 0x3,
+		.ports_per_stn	= 4,
 	},
 	{0},
 };
@@ -110,6 +195,7 @@ int pex87xx_read(struct pex87xx_device *pex, uint8_t stn, uint8_t port,
 int pex87xx_write(struct pex87xx_device *pex, uint8_t stn, uint8_t port,
 		  uint8_t mode, uint32_t reg, uint32_t val)
 {
+	int i;
 	uint32_t cmd[2];
 	uint8_t *send = (uint8_t *)cmd;
 	struct i2c_msg msgs[] = {
@@ -131,6 +217,11 @@ int pex87xx_write(struct pex87xx_device *pex, uint8_t stn, uint8_t port,
 	cmd[0] = PEX87XX_I2C_CMD(PEX87XX_CMD_WR, port, mode,
 				 stn, reg, MASK_BYTE_ALL);
 	cmd[1] = val;
+
+	printf("%08x %08x: ", cmd[0], cmd[1]);
+
+	for (i = 0; i < 8; i++)
+		printf(" %02x", send[i]);
 
 	return ioctl(pex->fd, I2C_RDWR, &data);
 }
@@ -171,9 +262,18 @@ static int probe_one(int fd, struct pex87xx_device **pex, uint8_t bus,
 
 	rev = status & 0xff;
 
+	switch (ven) {
+	case PEX_VENDOR_LSI:
+	case PEX_VENDOR_BROADCOM:
+	case PEX_VENDOR_PLX:
+		/* All good */
+		break;
+	default:
+		return -1;
+	}
+
 	for (i = 0; known_devices[i].name; i++) {
-		if (known_devices[i].ven_id != ven ||
-		    known_devices[i].dev_id != dev)
+		if (known_devices[i].dev_id != dev)
 			continue;
 
 		fprintf(stderr, "Found %s-%02X at %x-%04x\n",
@@ -191,6 +291,7 @@ static int probe_one(int fd, struct pex87xx_device **pex, uint8_t bus,
 		new->i2c_bus = bus;
 		new->i2c_dev = id;
 		new->rev = rev;
+		new->ven_id = ven;
 
 		check_enabled_ports(new);
 
