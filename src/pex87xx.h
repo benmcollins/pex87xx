@@ -26,7 +26,7 @@ struct pex87xx_device {
 	uint16_t	ven_id;
 	uint16_t	dev_id;
 	uint8_t		rev;
-	const char	*name;
+	const char	name[16];
 	uint8_t		i2c_bus;
 	uint8_t		i2c_dev;
 	uint64_t	ports;

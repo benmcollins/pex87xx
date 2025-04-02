@@ -333,6 +333,7 @@ static int probe_one(int fd, struct pex87xx_device **pex, uint8_t bus,
 	tmp.i2c_bus = bus;
 	tmp.i2c_dev = id;
 	tmp.ports = 1;
+	tmp.create_cmd = pex87xx_create_cmd;
 
 	if (pex87xx_read(&tmp, 0, 0, 0, PCI_VENDOR_ID, &status) < 0)
 		return -1;
@@ -355,7 +356,7 @@ static int probe_one(int fd, struct pex87xx_device **pex, uint8_t bus,
 		return -1;
 	}
 
-	for (i = 0; known_devices[i].name; i++) {
+	for (i = 0; known_devices[i].name[0]; i++) {
 		if (known_devices[i].dev_id != dev)
 			continue;
 
@@ -370,6 +371,7 @@ static int probe_one(int fd, struct pex87xx_device **pex, uint8_t bus,
 			return -1;
 
 		memcpy(new, &known_devices[i], sizeof(*new));
+
 		new->fd = fd;
 		new->i2c_bus = bus;
 		new->i2c_dev = id;
