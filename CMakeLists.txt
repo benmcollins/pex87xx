@@ -18,7 +18,7 @@ project(${PEX87XX_PROJECT}
 	LANGUAGES C)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-add_compile_options(-Wall -Werror)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -O2")
 
 # Must be set after the above
 include(GNUInstallDirs)
