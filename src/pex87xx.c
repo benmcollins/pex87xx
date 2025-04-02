@@ -18,6 +18,7 @@
 #include <linux/i2c-dev.h>
 #include <linux/pci_regs.h>
 #include <sys/ioctl.h>
+#include <asm/byteorder.h>
 
 #include "pex87xx.h"
 
@@ -40,13 +41,20 @@
 #define PEX87XX_STN(val)		(((val) & 3) << 18)
 #define PEX87XX_PORT(val)		(((val) & 7) << 15)
 
-#define PEX87XX_I2C_CMD(cmd, port, mode, stn, reg, byte_mask)	\
-	(PEX87XX_CMD(cmd)   |					\
-	 PEX87XX_MODE(mode) |					\
-	 PEX87XX_STN(stn)   |					\
-	 PEX87XX_PORT(port) |					\
-	 PEX87XX_BYTE_ENA(byte_mask) |				\
-	 PEX87XX_REG(reg))
+static uint32_t pex87xx_create_cmd(uint8_t cmd, uint8_t port, uint8_t mode,
+				   uint8_t stn, uint16_t reg, uint8_t mask)
+{
+	uint32_t cmd_send;
+
+	cmd_send  = PEX87XX_CMD(cmd);
+	cmd_send |= PEX87XX_MODE(mode);
+	cmd_send |= PEX87XX_STN(stn);
+	cmd_send |= PEX87XX_PORT(port);
+	cmd_send |= PEX87XX_BYTE_ENA(mask);
+	cmd_send |= PEX87XX_REG(reg);
+
+	return __cpu_to_be32(cmd_send);
+}
 
 #define PEX_VENDOR_PLX			0x10b5
 #define PEX_VENDOR_BROADCOM		0x14E4
@@ -60,6 +68,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 1,
 		.stn_mask	= 0x1,
 		.ports_per_stn	= 4,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8712,
@@ -68,6 +77,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 1,
 		.stn_mask	= 0x1,
 		.ports_per_stn	= 4,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8713,
@@ -76,6 +86,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 2,
 		.stn_mask	= 0x3,
 		.ports_per_stn	= 8,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8714,
@@ -84,6 +95,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 1,
 		.stn_mask	= 0x1,
 		.ports_per_stn	= 5,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8716,
@@ -92,6 +104,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 1,
 		.stn_mask	= 0x1,
 		.ports_per_stn	= 4,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8717,
@@ -100,6 +113,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 2,
 		.stn_mask	= 0x3,
 		.ports_per_stn	= 8,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8718,
@@ -108,6 +122,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 1,
 		.stn_mask	= 0x1,
 		.ports_per_stn	= 4,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8723,
@@ -116,6 +131,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 2,
 		.stn_mask	= 0x3,
 		.ports_per_stn	= 8,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8724,
@@ -124,6 +140,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 2,
 		.stn_mask	= 0x3,
 		.ports_per_stn	= 8,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8725,
@@ -132,6 +149,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 2,
 		.stn_mask	= 0x3,
 		.ports_per_stn	= 8,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8732,
@@ -140,6 +158,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 2,
 		.stn_mask	= 0x3,
 		.ports_per_stn	= 8,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8733,
@@ -148,6 +167,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 3,
 		.stn_mask	= 0x7,
 		.ports_per_stn	= 8,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8734,
@@ -156,6 +176,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 2,
 		.stn_mask	= 0x3,
 		.ports_per_stn	= 4,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8747,
@@ -164,6 +185,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 3,
 		.stn_mask	= 0x7,
 		.ports_per_stn	= 8,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8748,
@@ -172,6 +194,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 3,
 		.stn_mask	= 0x7,
 		.ports_per_stn	= 8,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8749,
@@ -180,6 +203,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 3,
 		.stn_mask	= 0x7,
 		.ports_per_stn	= 8,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8750,
@@ -188,6 +212,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 3,
 		.stn_mask	= 0x7,
 		.ports_per_stn	= 4,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8764,
@@ -196,6 +221,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 4,
 		.stn_mask	= 0xf,
 		.ports_per_stn	= 4,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
 		.dev_id		= 0x8780,
@@ -204,6 +230,7 @@ static struct pex87xx_device known_devices[] = {
 		.stns		= 5,
 		.stn_mask	= 0x1f,
 		.ports_per_stn	= 4,
+		.create_cmd	= pex87xx_create_cmd,
 	},
 	{
                 .dev_id		= 0x8796,
@@ -212,6 +239,7 @@ static struct pex87xx_device known_devices[] = {
                 .stns		= 6,
                 .stn_mask	= 0x3f,
                 .ports_per_stn	= 4,
+		.create_cmd	= pex87xx_create_cmd,
         },
 	{0},
 };
@@ -219,7 +247,8 @@ static struct pex87xx_device known_devices[] = {
 int pex87xx_read(struct pex87xx_device *pex, uint8_t stn, uint8_t port,
 		 uint8_t mode, uint32_t reg, uint32_t *val)
 {
-	uint32_t send;
+	uint32_t send, recv;
+	int ret;
 	struct i2c_msg msgs[] = {
 		{
 			.addr = pex->i2c_dev,
@@ -231,7 +260,7 @@ int pex87xx_read(struct pex87xx_device *pex, uint8_t stn, uint8_t port,
 			.addr = pex->i2c_dev,
 			.len = 4,
 			.flags = I2C_M_RD,
-			.buf = (uint8_t *)val,
+			.buf = (uint8_t *)&recv,
 		}
         };
 	struct i2c_rdwr_ioctl_data data = {
@@ -242,10 +271,14 @@ int pex87xx_read(struct pex87xx_device *pex, uint8_t stn, uint8_t port,
 	if (!PEX_PORT_ENABLED(pex, port))
 		return -EINVAL;
 
-	send = PEX87XX_I2C_CMD(PEX87XX_CMD_RD, port, mode,
-			       stn, reg, MASK_BYTE_ALL);
+	send = pex->create_cmd(PEX87XX_CMD_RD, port, mode, stn, reg,
+			       MASK_BYTE_ALL);
 
-	return ioctl(pex->fd, I2C_RDWR, &data);
+	ret = ioctl(pex->fd, I2C_RDWR, &data);
+
+	*val = __be32_to_cpu(recv);
+
+	return ret;
 }
 
 int pex87xx_write(struct pex87xx_device *pex, uint8_t stn, uint8_t port,
@@ -269,9 +302,9 @@ int pex87xx_write(struct pex87xx_device *pex, uint8_t stn, uint8_t port,
 	if (!PEX_PORT_ENABLED(pex, port))
 		return -EINVAL;
 
-	cmd[0] = PEX87XX_I2C_CMD(PEX87XX_CMD_WR, port, mode,
-				 stn, reg, MASK_BYTE_ALL);
-	cmd[1] = val;
+	cmd[0] = pex->create_cmd(PEX87XX_CMD_WR, port, mode, stn, reg,
+				 MASK_BYTE_ALL);
+	cmd[1] = __cpu_to_be32(val);
 
 	return ioctl(pex->fd, I2C_RDWR, &data);
 }

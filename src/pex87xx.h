@@ -34,6 +34,9 @@ struct pex87xx_device {
 	uint8_t		stn_mask;
 	uint8_t		ports_per_stn;
 	int		fd;
+
+	uint32_t (*create_cmd)(uint8_t cmd, uint8_t port, uint8_t mode,
+			       uint8_t stn, uint16_t reg, uint8_t mask);
 };
 
 struct pex87xx_device *pex87xx_open(uint8_t bus, uint8_t id);
