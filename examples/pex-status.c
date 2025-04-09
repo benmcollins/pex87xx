@@ -28,7 +28,20 @@ static void print_port_color(uint8_t port, uint32_t status)
 	 * U-Boot code sends these commands, which enables things for one of the
 	 * nodes, but not the other:
 	 *
-	 * "Assign Hotplug controller C to Port 2 , A to Port 3 "
+	 * 0x3a4 is the Hotplug enable.
+	 *
+	 * 0x00898382
+	 *            C          B          A
+	 *            E    P 9   E    P 3   E    P 2
+	 *            1000 1001  1000 0011  1000 0010
+	 * 0000 0000  0000 0000  0000 0000  0000 0000
+	 *
+	 *
+	 * 0x00820A83
+	 *            C          B          A
+	 *            E    P 2   ?    P 10  E    P 3
+	 * 0000 0000  1000 0010  0000 1010  1000 0011
+	 *
 	 * pex87xx_write(PLX_PEX8724_I2C_ADDR, 0, 0, 0, 0x3a4, 0x00820A83);
 	 * pex87xx_write(PLX_PEX8724_I2C_ADDR, 0, 2, 0, 0xf70, 0x80000008);
 	 * pex87xx_write(PLX_PEX8724_I2C_ADDR, 0, 3, 0, 0xf70, 0x80000008);
@@ -57,6 +70,24 @@ static void print_port(struct pex87xx_device *pex, uint8_t stn, uint8_t port)
 
 	print_port_color(port, status);
 }
+
+/*
+ *  * Draco 2
+ *              Transp  NTV0 NTV1 NTL0 NTL1 DMA0 DMA1 DMA2 DMA3 DMA_RAM ALUT
+ *   Mode          0      2    2    1    1    3    3    3    3     3      3
+ *   Stn_Sel      S#      0    0    0    0    0    0    0    0     0      2
+ *   Port_Sel     P#      0    1    0    1    0    1    2    3     4     R#
+ *
+ *   case PLX_FAMILY_SCOUT:
+ *   case PLX_FAMILY_DRACO_1:
+ *   case PLX_FAMILY_DRACO_2:
+ *        bitPosMode    = 20;
+ *        bitPosStnSel  = 18;
+ *        addr_NTV0Base = 0x3E000;
+ *        addr_DmaBase  = 0x20000;
+ *        offset_DebugCtrl = 0x350;
+ *        offset_NTV0Base  = 0x3E000;
+ */
 
 static void print_modes(struct pex87xx_device *pex)
 {
@@ -91,6 +122,10 @@ static void print_modes(struct pex87xx_device *pex)
 	pex87xx_read(pex, 0, 4, PEX_MODE_DMA, 0xf70, &status);
 	print_port_color(0, status);
 	printf("\n");
+
+	printf("ALUT:");
+	pex87xx_read(pex, 2, 0, PEX_MODE_DMA, 0xf70, &status);
+	print_port_color(0, status);
 }
 
 static void management_port(struct pex87xx_device *pex)
@@ -98,16 +133,25 @@ static void management_port(struct pex87xx_device *pex)
 	uint32_t mngmt = 0, vls_mask = 0;
 	int i, vs_num = 0;
 
+	printf("Management Interface:\n");
+
 	pex87xx_read(pex, 0, 0, 0, 0x354, &mngmt);
-	printf("Management Port Config: %08x\n", mngmt);
+	printf("  Port Config: %08x\n", mngmt);
 	pex87xx_read(pex, 0, 0, 0, 0x358, &vls_mask);
-	printf("VLS Mask: %08x\n", vls_mask);
+	printf("  VLS Mask   : %08x\n", vls_mask);
 
-	if ((mngmt == 0) && ((vls_mask & ~(1 << 0)) == 0))
-		printf("Device is in VS mode, but not management port\n");
+	printf("  Device Mode: ");
+	if ((vls_mask & 0xff) != 1) {
+		printf("Virtual Switch, %smanagment node\n",
+		       mngmt ? "" : "non-");
+	} else {
+		printf("Standard\n");
+	}
 
-	printf("Management Port Active: %d\n", mngmt & 0x1f);
-	printf("Management Port Redundant: %d\n", (mngmt >> 8) & 0x1F);
+	if (mngmt & (1 << 5))
+		printf("  Management : Active\n");
+	if (mngmt & (1 << 13))
+		printf("  Redundant  : Active\n");
 
 	for (i = 0; i < 8; i++) {
 		uint32_t status;
@@ -120,22 +164,55 @@ static void management_port(struct pex87xx_device *pex)
 		pex87xx_read(pex, 0, 0, 0, 0x360 + (i * 4), &status);
 
 		printf("  VS[%d] Upstream Port Num: %d\n", i, status & 0x1f);
-
-		pex87xx_read(pex, 0, 0, 0, 0x380 + (i * 4), &status);
-
-		printf("  VS[%d] Dnstream Ports: %06x\n", i,
-		       status & 0x00FFFFFF);
+		if (i == 0) {
+			printf("    NT0: %sabled\n",
+			       status & (1 << 13) ? "en" : "dis");
+			printf("    NT1: %sabled\n",
+			       status & (1 << 21) ? "en" : "dis");
+		}
 	}
-
-	if (vs_num == 1)
-		printf("  Device is in standard mode\n");
-
-	printf("\n");
 }
 
 static void check_enabled_ports(struct pex87xx_device *pex)
 {
 	printf("Ports enabled: %04llx\n", pex->ports);
+}
+
+static void check_eeprom_status(struct pex87xx_device *pex)
+{
+	uint32_t status;
+
+	pex87xx_read(pex, 0, 0, 0, 0x260, &status);
+	printf("EEPROM: ");
+	if (status & (1 << 16)) {
+		int width = (status >> 22) & 0x3;
+
+		if (status & (1 << 17)) {
+			printf("Capable, but bad CRC or not present\n");
+		} else {
+			printf("Enabled and present, %dB width\n",
+			       width);
+		}
+	} else {
+		printf("Not enabled\n");
+	}
+}
+
+static void check_captured_bus(struct pex87xx_device *pex)
+{
+	uint32_t status;
+
+	pex87xx_read(pex, 0, 0, 0, 0x1dc, &status);
+	printf("Captured BusNo: %d\n", status & 0xff);
+}
+
+static void check_nt_port_status(struct pex87xx_device *pex)
+{
+	uint32_t status;
+
+	pex87xx_read(pex, 0, 0, 0, 0xc8c, &status);
+
+	printf("NT Port Config: %08x\n", status);
 }
 
 int main(int argc, char *argv[])
@@ -159,7 +236,12 @@ int main(int argc, char *argv[])
 	}
 
 	check_enabled_ports(pex);
+	check_eeprom_status(pex);
 	management_port(pex);
+	check_captured_bus(pex);
+	check_nt_port_status(pex);
+
+	printf("\n");
 
 	check_status(pex, 0);
 	check_status(pex, 8);

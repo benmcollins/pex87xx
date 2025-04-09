@@ -56,6 +56,7 @@ static uint32_t pex87xx_create_cmd(uint8_t cmd, uint8_t port, uint8_t mode,
 	return __cpu_to_be32(cmd_send);
 }
 
+
 #define PEX_VENDOR_PLX			0x10b5
 #define PEX_VENDOR_BROADCOM		0x14E4
 #define PEX_VENDOR_LSI			0x1000
@@ -322,29 +323,22 @@ static int probe_one(int fd, struct pex87xx_device **pex, uint8_t bus,
 		     uint8_t id)
 {
 	struct pex87xx_device *new = NULL;
-	struct pex87xx_device tmp;
+	struct pex87xx_device pex_min = {
+		.fd = fd,
+		.i2c_bus = bus,
+		.i2c_dev = id,
+		.ports = 0x1,
+		.create_cmd = pex87xx_create_cmd,
+	};
 	uint32_t status;
 	uint16_t ven, dev;
 	uint8_t rev;
 	int i;
 
-	/* Setup a tmp to probe */
-	tmp.fd = fd;
-	tmp.i2c_bus = bus;
-	tmp.i2c_dev = id;
-	tmp.ports = 1;
-	tmp.create_cmd = pex87xx_create_cmd;
-
-	if (pex87xx_read(&tmp, 0, 0, 0, PCI_VENDOR_ID, &status) < 0)
+	if (pex87xx_read(&pex_min, 0, 0, 0, PCI_VENDOR_ID, &status) < 0)
 		return -1;
-
 	ven = status & 0xffff;
 	dev = status >> 16;
-
-	if (pex87xx_read(&tmp, 0, 0, 0, 0x08, &status) < 0)
-		return -1;
-
-	rev = status & 0xff;
 
 	switch (ven) {
 	case PEX_VENDOR_LSI:
@@ -355,6 +349,10 @@ static int probe_one(int fd, struct pex87xx_device **pex, uint8_t bus,
 	default:
 		return -1;
 	}
+
+	if (pex87xx_read(&pex_min, 0, 0, 0, 0x08, &status) < 0)
+		return -1;
+	rev = status & 0xff;
 
 	for (i = 0; known_devices[i].name[0]; i++) {
 		if (known_devices[i].dev_id != dev)

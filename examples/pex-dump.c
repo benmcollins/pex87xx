@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <asm/byteorder.h>
 
 #include "pex87xx.h"
 
@@ -44,6 +45,7 @@ int main(int argc, char *argv[])
 	for (addr = 0; addr < 4096; addr += 4) {
 		if (pex87xx_read(pex, stn, port, mode, addr, &reg) < 0)
 			break;
+		reg = __cpu_to_le32(reg);
 		write(1, &reg, 4);
 	}
 

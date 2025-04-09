@@ -1,5 +1,34 @@
 # Linux I2C interface to PEX87xx PCIe Switches
 
+## The saga continues
+
+Broadcome has locked up all their docs in the PEX Editor. A java
+application that is protected by a license which is an RSA key that shows
+which chips you have access to. Further, the chip data books are encrypted
+until a license key is presented.
+
+One. I'll repeat One (1). One line of code. That's all it took to bypass all
+of that bullshit. The line?
+
+	return "8724";
+
+* Unjar the PEX Editor
+* Decompile one select java class
+* Add that line of code
+* Recompile the java class
+* Repack the jar
+* Start it up
+
+Seriously. Why even use this bullshit? You have to know you're target audience
+is programmers. If this task were on a Scrum board, I'd give it a Story Point of
+1.
+
+Anyway, Broadcom sucks at sucking and that is all. I'm using the PEX Editor and
+it's not too bad, but it doesn't include some of the indepth descriptions of
+NT and VS modes. That I had to dig out of the 8625 docs.
+
+## The original issue
+
 If anyone has docs on the PEX87xx register space, please let me know.
 
 Mainly I am looking to understand this:

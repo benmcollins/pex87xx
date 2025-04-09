@@ -50,9 +50,10 @@ function(pex87xx_add_example)
 endfunction()
 
 pex87xx_add_example(NAME pex-status SRC examples/pex-status.c)
-pex87xx_add_example(NAME pex-dump SRC examples/pex-dump.c)
-pex87xx_add_example(NAME pex-write SRC examples/pex-write.c)
-pex87xx_add_example(NAME pex-probe SRC examples/pex-probe.c)
+pex87xx_add_example(NAME pex-dump   SRC examples/pex-dump.c)
+pex87xx_add_example(NAME pex-write  SRC examples/pex-write.c)
+pex87xx_add_example(NAME pex-probe  SRC examples/pex-probe.c)
+pex87xx_add_example(NAME pex-read   SRC examples/pex-read.c)
 
 target_include_directories(pex87xx PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
